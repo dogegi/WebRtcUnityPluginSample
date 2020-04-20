@@ -58,7 +58,11 @@ public class WebRtcNativeCallSample : MonoBehaviour {
 
         AndroidJavaClass playerClass = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
         AndroidJavaObject activity = playerClass.GetStatic<AndroidJavaObject>("currentActivity");
-        AndroidJavaClass webrtcClass = new AndroidJavaClass("org.webrtc.PeerConnectionFactory");
+
+        AndroidJavaClass utilityClass = new AndroidJavaClass("org.webrtc.UnityUtility");
+        utilityClass.CallStatic("InitializePeerConncectionFactory", new object[1] { activity });
+
+        /*AndroidJavaClass webrtcClass = new AndroidJavaClass("org.webrtc.PeerConnectionFactory");
         AndroidJavaClass initOptionsClass = new AndroidJavaClass("org.webrtc.PeerConnectionFactory$InitializationOptions");
         AndroidJavaObject builder = initOptionsClass.CallStatic<AndroidJavaObject>("builder", new object[1] { activity });
         AndroidJavaObject options = builder.Call<AndroidJavaObject>("createInitializationOptions");
@@ -69,20 +73,21 @@ public class WebRtcNativeCallSample : MonoBehaviour {
             webrtcClass.CallStatic("initialize", new object[1] { options });
             Debug.Log("PeerConnectionFactory.initialize called.");
         }
+        */
 
 #endif
         List<string> servers = new List<string>();
-        servers.Add("stun: stun.skyway.io:3478");
+        //servers.Add("stun: stun.skyway.io:3478");
         servers.Add("stun: stun.l.google.com:19302");
         peer = new PeerConnectionM(servers, "", "");
         int id = peer.GetUniqueId();
         Debug.Log("PeerConnectionM.GetUniqueId() : " + id);
 
-        peer.OnLocalSdpReadytoSend += OnLocalSdpReadytoSend;
-        peer.OnIceCandiateReadytoSend += OnIceCandiateReadytoSend;
-        peer.OnLocalVideoFrameReady += OnI420LocalFrameReady;
-        peer.OnRemoteVideoFrameReady += OnI420RemoteFrameReady;
-        peer.OnFailureMessage += OnFailureMessage;
+        peer.LocalSdpReadytoSend += OnLocalSdpReadytoSend;
+        peer.IceCandiateReadytoSend += OnIceCandiateReadytoSend;
+        peer.FailureMessage += OnFailureMessage;
+        this.peer.DataFromDataChannelReady += OnDataFromDataChannelReady;
+        this.peer.LocalDataChannelReady += OnLocalDataChannelReady;
     }
 
     WebRtcSocket socket;
@@ -183,8 +188,33 @@ public class WebRtcNativeCallSample : MonoBehaviour {
     void Update() {
     }
 
-    public void OnLocalSdpReadytoSend(int id, string type, string sdp) {
-        Debug.Log("OnLocalSdpReadytoSend called. id="+id+" | type="+type+" | sdp="+sdp);
+    private void OnDataFromDataChannelReady(string s)
+    {
+        /*
+        // execute when possible.
+        MainThreadWorkloads.Enqueue(() =>
+        {
+            this.OnDataFromDataChannelReady.Invoke(s);
+        });
+        */
+    }
+
+    private void OnLocalDataChannelReady()
+    {
+        /*
+        // execute when possible.
+        MainThreadWorkloads.Enqueue(() =>
+        {
+            this.OnLocalDataChannelReady.Invoke();
+        });
+        */
+    }
+
+    //public void OnLocalSdpReadytoSend(int id, string type, string sdp) {
+    public void OnLocalSdpReadytoSend(string type, string sdp)
+    {
+        //Debug.Log("OnLocalSdpReadytoSend called. id="+id+" | type="+type+" | sdp="+sdp);
+        Debug.Log("OnLocalSdpReadytoSend called. type=" + type + " | sdp=" + sdp);
         // send offer
 
         if (type == "offer")
@@ -217,8 +247,10 @@ public class WebRtcNativeCallSample : MonoBehaviour {
         }
     }
 
-    public void OnIceCandiateReadytoSend(int id, string candidate, int sdpMlineIndex, string sdpMid) {
-        Debug.Log("OnIceCandiateReadytoSend called. id="+id+" candidate="+candidate+" sdpMid="+sdpMid);
+//    public void OnIceCandiateReadytoSend(int id, string candidate, int sdpMlineIndex, string sdpMid) {
+//        Debug.Log("OnIceCandiateReadytoSend called. id="+id+" candidate="+candidate+" sdpMid="+sdpMid);
+    public void OnIceCandiateReadytoSend(string candidate, int sdpMlineIndex, string sdpMid) {
+        Debug.Log("OnIceCandiateReadytoSend called. candidate="+candidate+" sdpMid="+sdpMid);
         if (socket != null)
         {
             socket.Emit("webrtc-icecandidate", candidate);
@@ -247,7 +279,8 @@ public class WebRtcNativeCallSample : MonoBehaviour {
         frameQueueLocal.Push(packet);
     }
 
-    public void OnI420RemoteFrameReady(int id,
+    //    public void OnI420RemoteFrameReady(int id,
+    public void OnI420RemoteFrameReady(
         IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
         int strideY, int strideU, int strideV, int strideA,
         uint width, uint height)
@@ -313,8 +346,8 @@ public class WebRtcNativeCallSample : MonoBehaviour {
         }
     }
 
-    public void OnFailureMessage(int id, string msg)
+    public void OnFailureMessage(string msg)
     {
-        Debug.Log("OnFailureMessage called! id=" + id + " msg=" + msg);
+        Debug.Log("OnFailureMessage called! msg=" + msg);
     }
 }

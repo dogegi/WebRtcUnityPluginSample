@@ -1,9 +1,20 @@
 var app = require('express')();
+var https = require('https');
 var http = require('http').Server(app);
+const fs = require('fs');
+
 var io = require('socket.io')(http, {
   transports: ['polling']
 });
+
 const ngrok = require('ngrok');
+
+const options = {
+  cert: fs.readFileSync('cert.pem'),
+  key: fs.readFileSync('key.pem'),
+  requestCert: false,
+  rejectUnauthorized: false
+};
 
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
@@ -51,8 +62,14 @@ io.on('connection', function(socket){
   })
 });
 
+const sport = 3001;
+https.createServer(options, app).listen(sport, function(){
+//http.listen(port, function() {
+  console.log('listening on *:' + sport);
+});
+
 const port = 3000;
-http.listen(port, function(){
+http.listen(port, function() {
   console.log('listening on *:'+port);
   console.log('forwarding to global domain...')
   ngrok.connect(port, (err, url) => {

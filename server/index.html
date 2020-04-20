@@ -14,8 +14,8 @@
     </style>
   </head>
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+<script src="http://127.0.0.1:3000/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-3.3.1.js"></script>
 <script>
 
   // simple and dirty WebRTC signaling (without sending each ice candidates)
@@ -24,7 +24,8 @@
   var userStream = null;
   function prepareUserMedia() {
     var options = {video: true, audio: false};
-    navigator.mediaDevices.getUserMedia(options)
+    navigator.mediaDevices.getUserMedia({video: {facingMode: 'user',
+            frameRate: 15, width : 1280, height:720}})
       .then(function(stream) {
         console.log("GetUserMedia success!");
         userStream = stream;
@@ -161,7 +162,7 @@
   var targetId = null;
 
   $(function () {
-    socket = io();
+    socket = io("http://127.0.0.1:3000");
     $('form').submit(function(){
       socket.emit('chat', $('#m').val());
       $('#m').val('');

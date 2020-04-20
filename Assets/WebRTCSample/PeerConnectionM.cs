@@ -1,6 +1,9 @@
-﻿using System;
+﻿using AOT;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using UnityWebrtc;
+using UnityWebrtc.Delegates;
 
 // native impl: 
 // https://chromium.googlesource.com/external/webrtc/+/51e2046dbcbbb0375c383594aa4f77aa8ed67b06/examples/unityplugin/simple_peer_connection.cc
@@ -37,268 +40,462 @@ namespace SimplePeerConnectionM
         }
     }
     // A managed wrapper up class for the native c style peer connection APIs.
-    public class PeerConnectionM
+    public class PeerConnectionM : IPeer
     {
-        //private const string dllPath = "webrtc_unity_plugin";
-        private const string dllPath = "libjingle_peerconnection_so";
-
-        //[DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        //private static extern int InitializePeerConnection(string[] turnUrls, int noOfUrls, string username, string credential, bool isReceiver);
-
-        //create a peerconnection with turn servers
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern int CreatePeerConnection(string[] turnUrls, int noOfUrls,
-            string username, string credential);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool ClosePeerConnection(int peerConnectionId);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool AddStream(int peerConnectionId, bool audioOnly);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool AddDataChannel(int peerConnectionId);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool CreateOffer(int peerConnectionId);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool CreateAnswer(int peerConnectionId);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool SendDataViaDataChannel(int peerConnectionId, string data);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool SetAudioControl(int peerConnectionId, bool isMute, bool isRecord);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void LocalDataChannelReadyInternalDelegate();
-        public delegate void LocalDataChannelReadyDelegate(int id);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnLocalDataChannelReady(
-            int peerConnectionId, LocalDataChannelReadyInternalDelegate callback);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void DataFromDataChannelReadyInternalDelegate(string s);
-        public delegate void DataFromDataChannelReadyDelegate(int id, string s);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnDataFromDataChannelReady(
-            int peerConnectionId, DataFromDataChannelReadyInternalDelegate callback);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void FailureMessageInternalDelegate(string msg);
-        public delegate void FailureMessageDelegate(int id, string msg);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnFailure(int peerConnectionId,
-            FailureMessageInternalDelegate callback);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void AudioBusReadyInternalDelegate(IntPtr data, int bitsPerSample,
-            int sampleRate, int numberOfChannels, int numberOfFrames);
-        public delegate void AudioBusReadyDelegate(int id, IntPtr data, int bitsPerSample,
-            int sampleRate, int numberOfChannels, int numberOfFrames);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnAudioBusReady(int peerConnectionId,
-            AudioBusReadyInternalDelegate callback);
-
-        // Video callbacks.
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void I420FrameReadyInternalDelegate(
-            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
-            int strideY, int strideU, int strideV, int strideA,
-            uint width, uint height);
-        public delegate void I420FrameReadyDelegate(int id,
-            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
-            int strideY, int strideU, int strideV, int strideA,
-            uint width, uint height);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnLocalI420FrameReady(int peerConnectionId,
-            I420FrameReadyInternalDelegate callback);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnRemoteI420FrameReady(int peerConnectionId,
-            I420FrameReadyInternalDelegate callback);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void LocalSdpReadytoSendInternalDelegate(string type, string sdp);
-        public delegate void LocalSdpReadytoSendDelegate(int id, string type, string sdp);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnLocalSdpReadytoSend(int peerConnectionId,
-            LocalSdpReadytoSendInternalDelegate callback);
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void IceCandiateReadytoSendInternalDelegate(
-            string candidate, int sdpMlineIndex, string sdpMid);
-        public delegate void IceCandiateReadytoSendDelegate(
-            int id, string candidate, int sdpMlineIndex, string sdpMid);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool RegisterOnIceCandiateReadytoSend(
-            int peerConnectionId, IceCandiateReadytoSendInternalDelegate callback);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool SetRemoteDescription(int peerConnectionId, string type, string sdp);
-
-        [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern bool AddIceCandidate(int peerConnectionId, string sdp,
-          int sdpMlineindex, string sdpMid);
-        public PeerConnectionM(List<string> turnUrls, string username, string credential)
+        /// <summary>
+        /// Internal marshalling definitions to the native-library
+        /// </summary>
+        private static class NativeMethods
         {
-            string[] urls = turnUrls != null ? turnUrls.ToArray() : null;
-            int length = turnUrls != null ? turnUrls.Count : 0;
-            mPeerConnectionId = CreatePeerConnection(urls, length, username, credential);
-            RegisterCallbacks();
+#if UNITY_ANDROID
+            private const string dllPath = "jingle_peerconnection_so";
+#elif UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN || UNITY_WSA
+            private const string dllPath = "webrtc_unity_plugin";
+#endif
+
+            #region Synchronous calls
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern int CreatePeerConnection(string[] turnUrls,
+                int noOfUrls,
+                string username,
+                string credential);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool ClosePeerConnection(int peerConnectionId);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool AddStream(int peerConnectionId,
+                bool audioOnly);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool AddDataChannel(int peerConnectionId);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool CreateOffer(int peerConnectionId);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool CreateAnswer(int peerConnectionId);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool SendDataViaDataChannel(int peerConnectionId,
+                string data);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool SetAudioControl(int peerConnectionId,
+                bool isMute,
+                bool isRecord);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool SetRemoteDescription(int peerConnectionId,
+                string type,
+                string sdp);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool AddIceCandidate(int peerConnectionId,
+                string sdp,
+                int sdpMlineindex,
+                string sdpMid);
+
+            #endregion
+
+            #region Asynchronous calls
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void LocalDataChannelReady(IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnLocalDataChannelReady(int peerConnectionId,
+                LocalDataChannelReady callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void DataFromDataChannelReady(string data,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnDataFromDataChannelReady(int peerConnectionId,
+                DataFromDataChannelReady callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void FailureMessage(string msg,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnFailure(int peerConnectionId,
+                FailureMessage callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void AudioBusReady(IntPtr data,
+                int bitsPerSample,
+                int sampleRate,
+                int numberOfChannels,
+                int numberOfFrames,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnAudioBusReady(int peerConnectionId,
+                AudioBusReady callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void I420FrameReady(IntPtr dataY,
+                IntPtr dataU,
+                IntPtr dataV,
+                IntPtr dataA,
+                int strideY,
+                int strideU,
+                int strideV,
+                int strideA,
+                uint width,
+                uint height,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnLocalI420FrameReady(int peerConnectionId,
+                I420FrameReady callback,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnRemoteI420FrameReady(int peerConnectionId,
+                I420FrameReady callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void LocalSdpReadytoSend(string type,
+                string sdp,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnLocalSdpReadytoSend(int peerConnectionId,
+                LocalSdpReadytoSend callback,
+                IntPtr userData);
+
+            [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+            public delegate void IceCandiateReadytoSend(string sdp,
+                int sdpMlineIndex,
+                string sdpMid,
+                IntPtr userData);
+
+            [DllImport(dllPath, CallingConvention = CallingConvention.Cdecl)]
+            public static extern bool RegisterOnIceCandiateReadytoSend(int peerConnectionId,
+                IceCandiateReadytoSend callback,
+                IntPtr userData);
+
+            #endregion
         }
-        public void ClosePeerConnection()
+
+        /// <summary>
+        /// Internal static callback definitions to facilitate marshalling callbacks back from the native-library
+        /// </summary>
+        private static class NativeCallbacks
         {
-            ClosePeerConnection(mPeerConnectionId);
-            mPeerConnectionId = -1;
-        }
-        // Return -1 if Peerconnection is not available.
-        public int GetUniqueId()
-        {
-            return mPeerConnectionId;
-        }
-        public void AddStream(bool audioOnly)
-        {
-            AddStream(mPeerConnectionId, audioOnly);
-        }
-        public void AddDataChannel()
-        {
-            AddDataChannel(mPeerConnectionId);
-        }
-        public void CreateOffer()
-        {
-            CreateOffer(mPeerConnectionId);
-        }
-        public void CreateAnswer()
-        {
-            CreateAnswer(mPeerConnectionId);
-        }
-        public void SendDataViaDataChannel(string data)
-        {
-            SendDataViaDataChannel(mPeerConnectionId, data);
-        }
-        public void SetAudioControl(bool isMute, bool isRecord)
-        {
-            SetAudioControl(mPeerConnectionId, isMute, isRecord);
-        }
-        public void SetRemoteDescription(string type, string sdp)
-        {
-            SetRemoteDescription(mPeerConnectionId, type, sdp);
-        }
-        public void AddIceCandidate(string candidate, int sdpMlineindex, string sdpMid)
-        {
-            AddIceCandidate(mPeerConnectionId, candidate, sdpMlineindex, sdpMid);
-        }
-        private void RegisterCallbacks()
-        {
-            localDataChannelReadyDelegate = new LocalDataChannelReadyInternalDelegate(
-                RaiseLocalDataChannelReady);
-            RegisterOnLocalDataChannelReady(mPeerConnectionId, localDataChannelReadyDelegate);
-            dataFromDataChannelReadyDelegate = new DataFromDataChannelReadyInternalDelegate(
-                RaiseDataFromDataChannelReady);
-            RegisterOnDataFromDataChannelReady(mPeerConnectionId, dataFromDataChannelReadyDelegate);
-            failureMessageDelegate = new FailureMessageInternalDelegate(RaiseFailureMessage);
-            RegisterOnFailure(mPeerConnectionId, failureMessageDelegate);
-            audioBusReadyDelegate = new AudioBusReadyInternalDelegate(RaiseAudioBusReady);
-            RegisterOnAudioBusReady(mPeerConnectionId, audioBusReadyDelegate);
-            localI420FrameReadyDelegate = new I420FrameReadyInternalDelegate(
-              RaiseLocalVideoFrameReady);
-            RegisterOnLocalI420FrameReady(mPeerConnectionId, localI420FrameReadyDelegate);
-            remoteI420FrameReadyDelegate = new I420FrameReadyInternalDelegate(
-              RaiseRemoteVideoFrameReady);
-            RegisterOnRemoteI420FrameReady(mPeerConnectionId, remoteI420FrameReadyDelegate);
-            localSdpReadytoSendDelegate = new LocalSdpReadytoSendInternalDelegate(
-              RaiseLocalSdpReadytoSend);
-            RegisterOnLocalSdpReadytoSend(mPeerConnectionId, localSdpReadytoSendDelegate);
-            iceCandiateReadytoSendDelegate =
-                new IceCandiateReadytoSendInternalDelegate(RaiseIceCandiateReadytoSend);
-            RegisterOnIceCandiateReadytoSend(
-                mPeerConnectionId, iceCandiateReadytoSendDelegate);
-        }
-        private void RaiseLocalDataChannelReady()
-        {
-            if (OnLocalDataChannelReady != null)
-                OnLocalDataChannelReady(mPeerConnectionId);
-        }
-        private void RaiseDataFromDataChannelReady(string data)
-        {
-            if (OnDataFromDataChannelReady != null)
-                OnDataFromDataChannelReady(mPeerConnectionId, data);
-        }
-        private void RaiseFailureMessage(string msg)
-        {
-            if (OnFailureMessage != null)
-                OnFailureMessage(mPeerConnectionId, msg);
-        }
-        private void RaiseAudioBusReady(IntPtr data, int bitsPerSample,
-          int sampleRate, int numberOfChannels, int numberOfFrames)
-        {
-            if (OnAudioBusReady != null)
-                OnAudioBusReady(mPeerConnectionId, data, bitsPerSample, sampleRate,
-                    numberOfChannels, numberOfFrames);
-        }
-        private void RaiseLocalVideoFrameReady(
-            IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
-            int strideY, int strideU, int strideV, int strideA,
-            uint width, uint height)
-        {
-            if (OnLocalVideoFrameReady != null)
-                OnLocalVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, dataA, strideY, strideU, strideV, strideA,
-                  width, height);
-        }
-        private void RaiseRemoteVideoFrameReady(
-           IntPtr dataY, IntPtr dataU, IntPtr dataV, IntPtr dataA,
-           int strideY, int strideU, int strideV, int strideA,
-           uint width, uint height)
-        {
-            if (OnRemoteVideoFrameReady != null)
-                OnRemoteVideoFrameReady(mPeerConnectionId, dataY, dataU, dataV, dataA, strideY, strideU, strideV, strideA,
-                  width, height);
-        }
-        private void RaiseLocalSdpReadytoSend(string type, string sdp)
-        {
-            if (OnLocalSdpReadytoSend != null)
-                OnLocalSdpReadytoSend(mPeerConnectionId, type, sdp);
-        }
-        private void RaiseIceCandiateReadytoSend(string candidate, int sdpMlineIndex, string sdpMid)
-        {
-            if (OnIceCandiateReadytoSend != null)
-                OnIceCandiateReadytoSend(mPeerConnectionId, candidate, sdpMlineIndex, sdpMid);
-        }
-        public void AddQueuedIceCandidate(List<IceCandidate> iceCandidateQueue)
-        {
-            if (iceCandidateQueue != null)
+            [MonoPInvokeCallback(typeof(NativeMethods.LocalDataChannelReady))]
+            public static void LocalDataChannelReady_Global(IntPtr userData)
             {
-                foreach (IceCandidate ic in iceCandidateQueue)
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.LocalDataChannelReady != null)
                 {
-                    AddIceCandidate(mPeerConnectionId, ic.Candidate, ic.SdpMlineIndex, ic.SdpMid);
+                    peer.LocalDataChannelReady();
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.DataFromDataChannelReady))]
+            public static void DataFromDataChannelReady_Global(string data, IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.DataFromDataChannelReady != null)
+                {
+                    peer.DataFromDataChannelReady(data);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.FailureMessage))]
+            public static void FailureMessage_Global(string msg, IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.FailureMessage != null)
+                {
+                    peer.FailureMessage(msg);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.AudioBusReady))]
+            public static void AudioBusReady_Global(IntPtr data,
+                int bitsPerSample,
+                int sampleRate,
+                int numberOfChannels,
+                int numberOfFrames,
+                IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.AudioBusReady != null)
+                {
+                    peer.AudioBusReady(data,
+                        bitsPerSample,
+                        sampleRate,
+                        numberOfChannels,
+                        numberOfFrames);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.I420FrameReady))]
+            public static void LocalI420FrameReady_Global(IntPtr dataY,
+                IntPtr dataU,
+                IntPtr dataV,
+                IntPtr dataA,
+                int strideY,
+                int strideU,
+                int strideV,
+                int strideA,
+                uint width,
+                uint height,
+                IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.LocalI420FrameReady != null)
+                {
+                    peer.LocalI420FrameReady(dataY,
+                        dataU,
+                        dataV,
+                        dataA,
+                        strideY,
+                        strideU,
+                        strideV,
+                        strideA,
+                        width,
+                        height);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.I420FrameReady))]
+            public static void RemoteI420FrameReady_Global(IntPtr dataY,
+                IntPtr dataU,
+                IntPtr dataV,
+                IntPtr dataA,
+                int strideY,
+                int strideU,
+                int strideV,
+                int strideA,
+                uint width,
+                uint height,
+                IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.RemoteI420FrameReady != null)
+                {
+                    peer.RemoteI420FrameReady(dataY,
+                        dataU,
+                        dataV,
+                        dataA,
+                        strideY,
+                        strideU,
+                        strideV,
+                        strideA,
+                        width,
+                        height);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.LocalSdpReadytoSend))]
+            public static void LocalSdpReadytoSend_Global(string type,
+                string sdp,
+                IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.LocalSdpReadytoSend != null)
+                {
+                    peer.LocalSdpReadytoSend(type,
+                        sdp);
+                }
+            }
+
+            [MonoPInvokeCallback(typeof(NativeMethods.IceCandiateReadytoSend))]
+            public static void IceCandiateReadytoSend_Global(string sdp,
+                int sdpMlineIndex,
+                string sdpMid,
+                IntPtr userData)
+            {
+                var handle = GCHandle.FromIntPtr(userData);
+                var peer = handle.Target as PeerConnectionM;
+
+                if (peer.IceCandiateReadytoSend != null)
+                {
+                    peer.IceCandiateReadytoSend(sdp,
+                        sdpMlineIndex,
+                        sdpMid);
                 }
             }
         }
-        private LocalDataChannelReadyInternalDelegate localDataChannelReadyDelegate = null;
-        public event LocalDataChannelReadyDelegate OnLocalDataChannelReady;
-        private DataFromDataChannelReadyInternalDelegate dataFromDataChannelReadyDelegate = null;
-        public event DataFromDataChannelReadyDelegate OnDataFromDataChannelReady;
-        private FailureMessageInternalDelegate failureMessageDelegate = null;
-        public event FailureMessageDelegate OnFailureMessage;
-        private AudioBusReadyInternalDelegate audioBusReadyDelegate = null;
-        public event AudioBusReadyDelegate OnAudioBusReady;
-        private I420FrameReadyInternalDelegate localI420FrameReadyDelegate = null;
-        public event I420FrameReadyDelegate OnLocalVideoFrameReady;
-        private I420FrameReadyInternalDelegate remoteI420FrameReadyDelegate = null;
-        public event I420FrameReadyDelegate OnRemoteVideoFrameReady;
-        private LocalSdpReadytoSendInternalDelegate localSdpReadytoSendDelegate = null;
-        public event LocalSdpReadytoSendDelegate OnLocalSdpReadytoSend;
-        private IceCandiateReadytoSendInternalDelegate iceCandiateReadytoSendDelegate = null;
-        public event IceCandiateReadytoSendDelegate OnIceCandiateReadytoSend;
-        private int mPeerConnectionId = -1;
+
+        /// <summary>
+        /// Event that occurs when the local data channel is ready
+        /// </summary>
+        public event Action LocalDataChannelReady;
+
+        /// <summary>
+        /// Event that occurs when data is available from the remote, sent via the data channel
+        /// </summary>
+        public event Action<string> DataFromDataChannelReady;
+
+        /// <summary>
+        /// Event that occurs when a native failure occurs
+        /// </summary>
+        public event Action<string> FailureMessage;
+
+        /// <summary>
+        /// Event that occurs when the audio bus is ready
+        /// </summary>
+        public event AudioBusReadyHandler AudioBusReady;
+
+        /// <summary>
+        /// Event that occurs when a local frame is ready
+        /// </summary>
+        public event I420FrameReadyHandler LocalI420FrameReady;
+
+        /// <summary>
+        /// Event that occurs when a remote frame is ready
+        /// </summary>
+        public event I420FrameReadyHandler RemoteI420FrameReady;
+
+        /// <summary>
+        /// Event that occurs when a local SDP is ready to transmit
+        /// </summary>
+        public event Action<string, string> LocalSdpReadytoSend;
+
+        /// <summary>
+        /// Event that occurs when a local ice candidate is ready to transmit
+        /// </summary>
+        public event Action<string, int, string> IceCandiateReadytoSend;
+
+        /// <summary>
+        /// Internal peer id
+        /// </summary>
+        private int peerId;
+
+        /// <summary>
+        /// Internal pinned gc handle to <c>this</c>
+        /// </summary>
+        /// <remarks>
+        /// this allows us to use il2cpp callbacks (which require static handlers) but still keep
+        /// our instance-based interface on the managed side
+        /// </remarks>
+        private GCHandle peerHandle;
+
+        public PeerConnectionM(List<string> turnUrls, string username, string credential)
+        {
+            // create a gc-pinned handle to ourselves, to be passed as userdata in the callbacks
+            // this allows us to use il2cpp callbacks (which require static handlers) but still keep
+            // our instance-based interface on the managed side
+            peerHandle = GCHandle.Alloc(this);
+
+            peerId = NativeMethods.CreatePeerConnection(turnUrls.ToArray(),
+                turnUrls.Count,
+                username,
+                credential);
+
+            // register callbacks
+            NativeMethods.RegisterOnLocalDataChannelReady(peerId,
+                NativeCallbacks.LocalDataChannelReady_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnDataFromDataChannelReady(peerId,
+                NativeCallbacks.DataFromDataChannelReady_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnFailure(peerId,
+                NativeCallbacks.FailureMessage_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnAudioBusReady(peerId,
+                NativeCallbacks.AudioBusReady_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnLocalI420FrameReady(peerId,
+                NativeCallbacks.LocalI420FrameReady_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnRemoteI420FrameReady(peerId,
+                NativeCallbacks.RemoteI420FrameReady_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnLocalSdpReadytoSend(peerId,
+                NativeCallbacks.LocalSdpReadytoSend_Global,
+                GCHandle.ToIntPtr(peerHandle));
+            NativeMethods.RegisterOnIceCandiateReadytoSend(peerId,
+                NativeCallbacks.IceCandiateReadytoSend_Global,
+                GCHandle.ToIntPtr(peerHandle));
+        }
+
+        #region IPeer
+
+        public void AddDataChannel()
+        {
+            NativeMethods.AddDataChannel(peerId);
+        }
+
+        public void AddIceCandidate(string sdp, int sdpMlineindex, string sdpMid)
+        {
+            NativeMethods.AddIceCandidate(peerId, sdp, sdpMlineindex, sdpMid);
+        }
+
+        public void AddStream(bool audioOnly)
+        {
+            NativeMethods.AddStream(peerId, audioOnly);
+        }
+
+        public void ClosePeerConnection()
+        {
+            NativeMethods.ClosePeerConnection(peerId);
+        }
+
+        public void CreateAnswer()
+        {
+            NativeMethods.CreateAnswer(peerId);
+        }
+
+        public void CreateOffer()
+        {
+            NativeMethods.CreateOffer(peerId);
+        }
+
+        /// <summary>
+        /// Get the peer id 
+        /// </summary>
+        /// <remarks>
+        /// TODO(bengreenier): would be nice to refactor to property, to be more c-sharpy
+        /// </remarks>
+        /// <returns>the peer id</returns>
+        public int GetUniqueId()
+        {
+            return peerId;
+        }
+
+        public void SendDataViaDataChannel(string data)
+        {
+            NativeMethods.SendDataViaDataChannel(peerId, data);
+        }
+
+        public void SetAudioControl(bool isMute, bool isRecord)
+        {
+            NativeMethods.SetAudioControl(peerId, isMute, isRecord);
+        }
+
+        public void SetRemoteDescription(string type, string sdp)
+        {
+            NativeMethods.SetRemoteDescription(peerId, type, sdp);
+        }
+
+        #endregion
     }
 }

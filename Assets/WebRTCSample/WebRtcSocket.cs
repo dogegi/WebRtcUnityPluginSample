@@ -1,11 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Quobject.SocketIoClientDotNet.Client;
-using Newtonsoft.Json;
+using Socket.Quobject.SocketIoClientDotNet.Client;
+using Socket.Newtonsoft.Json;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using Quobject.Collections.Immutable;
+using Socket.Quobject.Collections.Immutable;
 
 public class WebRtcMsg
 {
@@ -16,7 +16,7 @@ public class WebRtcMsg
 public class WebRtcSocket
 {
     int myUserId = 0;
-    Socket socket;
+    QSocket socket;
 
     public int MyUserId
     {
@@ -32,21 +32,21 @@ public class WebRtcSocket
         Debug.Log("SocketIO: connecting to:" + url);
         IO.Options opts = new IO.Options();
         opts.Transports = ImmutableList<string>.Empty.Add("polling");
-        Socket socket = IO.Socket(url, opts);
+        QSocket socket = IO.Socket(url, opts);
 
-        socket.On(Socket.EVENT_CONNECT, () =>
+        socket.On(QSocket.EVENT_CONNECT, () =>
         {
             Debug.Log("SocketIO: connected!");
             this.socket = socket;
             InitHandlers();
             this.OnConnect();
         });
-        socket.On(Socket.EVENT_CONNECT_ERROR, (msg) =>
+        socket.On(QSocket.EVENT_CONNECT_ERROR, (msg) =>
         {
             Debug.Log("SocketIO: connect error!");
             this.OnConnectError("error:"+msg);
         });
-        socket.On(Socket.EVENT_DISCONNECT, () =>
+        socket.On(QSocket.EVENT_DISCONNECT, () =>
         {
             Debug.Log("SocketIO: disconnected!");
             this.OnDisconnect();
